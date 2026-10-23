@@ -229,6 +229,11 @@ The quickstart publishes `CANARY_LOGIN_PORT`, `CANARY_GAME_PORT`,
 `.env`. Keep these values distinct unless you intentionally add a Compose
 override for custom port mappings.
 
+On every start, MyAAC's `core.status_ip` and `core.status_port` settings are
+set to `CANARY_STATUS_HOST` (default `server`, the Compose service name) and
+`CANARY_STATUS_PORT`. MyAAC's own defaults (`127.0.0.1:7171`) override
+`config.lua` and would make the website report the server as offline.
+
 `CANARY_SERVER_IP` is the address sent to the client in the world list. It is not
 the Docker service name.
 

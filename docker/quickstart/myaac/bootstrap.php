@@ -373,6 +373,36 @@ function finish_myaac_install(PDO $pdo): void
 	$statement->execute(['docker_quickstart_installed', date(DATE_ATOM)]);
 }
 
+function upsert_core_setting(PDO $pdo, string $key, string $value): void
+{
+	$statement = $pdo->prepare('SELECT `id` FROM myaac_settings WHERE `name` = ? AND `key` = ? LIMIT 1');
+	$statement->execute(['core', $key]);
+	$id = $statement->fetchColumn();
+
+	if ($id === false) {
+		$pdo->prepare('INSERT INTO myaac_settings (`name`, `key`, `value`) VALUES (?, ?, ?)')
+			->execute(['core', $key, $value]);
+		return;
+	}
+
+	$pdo->prepare('UPDATE myaac_settings SET `value` = ? WHERE `id` = ?')->execute([$value, $id]);
+}
+
+// MyAAC's status_ip/status_port settings default to 127.0.0.1:7171 and take
+// precedence over config.lua, which never reaches the Canary status protocol
+// from inside this container. Point them at the server service on every start.
+function apply_status_settings(PDO $pdo): void
+{
+	$port = env_value('CANARY_STATUS_PORT', '7173');
+	if (!ctype_digit($port)) {
+		fwrite(STDERR, "Invalid CANARY_STATUS_PORT: '{$port}'.\n");
+		exit(1);
+	}
+
+	upsert_core_setting($pdo, 'status_ip', env_value('CANARY_STATUS_HOST', 'server'));
+	upsert_core_setting($pdo, 'status_port', $port);
+}
+
 chdir('/var/www/html');
 write_myaac_config();
 
@@ -382,4 +412,5 @@ import_myaac_schema($pdo);
 ensure_canary_myaac_columns($pdo);
 set_myaac_database_version($pdo);
 finish_myaac_install($pdo);
+apply_status_settings($pdo);
 echo "MyAAC quickstart is ready.\n";
